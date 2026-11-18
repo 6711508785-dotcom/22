@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>5W1H DETECTIVE ADVENTURE - นักสืบจิ๋วผจญภัย ไขปริศนา 5W1H</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="mp-gateway" class="mp-overlay">
+    <div class="mp-card">
+      <div class="mp-brand">🌐 5W1H DETECTIVE ADVENTURE</div>
+      <h1>ห้องเรียนออนไลน์</h1>
+      <p class="mp-subtitle">ครูสร้างห้อง • นักเรียนเข้าร่วมด้วยรหัส • สูงสุด 50 คน</p>
+      <div class="mp-tabs">
+        <button id="mp-tab-teacher" class="mp-tab active" type="button">👩‍🏫 ครูสร้างห้อง</button>
+        <button id="mp-tab-student" class="mp-tab" type="button">🕵️ นักเรียนเข้าห้อง</button>
+      </div>
+      <section id="mp-teacher-panel">
+        <label>ชื่อครู</label><input id="mp-teacher-name" maxlength="30" value="ครูผู้ควบคุม" />
+        <label>รหัสผ่านครู (Teacher PIN)</label><input id="mp-teacher-pin" type="password" autocomplete="current-password" placeholder="รหัสที่กำหนดในเซิร์ฟเวอร์" />
+        <button id="mp-create-room" class="mp-primary" type="button">สร้างห้องเรียน</button>
+      </section>
+      <section id="mp-student-panel" hidden>
+        <label>ชื่อ - นามสกุล / ชื่อเล่น</label><input id="mp-student-name" maxlength="25" placeholder="เช่น เด็กชายต้นกล้า" />
+        <label>เลขที่ / ห้องเรียน</label><input id="mp-student-number" maxlength="20" placeholder="เช่น 15 ม.2/1" />
+        <label>รหัสห้องจากครู</label><input id="mp-room-code" maxlength="20" placeholder="กรอกรหัสห้อง" />
+        <button id="mp-join-room" class="mp-primary" type="button">เข้าร่วมห้อง</button>
+      </section>
+      <div id="mp-status" class="mp-status" role="status">กำลังเตรียมระบบเชื่อมต่อ...</div>
+      <div id="mp-room-info" class="mp-room-info" hidden>
+        <div>รหัสห้องของคุณ</div><strong id="mp-room-code-display"></strong>
+        <div id="mp-player-count">ผู้เล่น 1 / 50 คน</div>
+        <div id="mp-player-list" class="mp-player-list"></div>
+        <button id="mp-enter-game" class="mp-primary" type="button">เข้าสู่เกม 3D</button>
+      </div>
+      <small>หากเชื่อมต่อไม่ได้ ให้ตรวจสอบว่าเซิร์ฟเวอร์ออนไลน์และตั้งค่า URL ถูกต้อง</small>
+    </div>
+  </div>
+  <aside id="mp-teacher-dock" hidden>
+    <strong>👩‍🏫 แผงควบคุมครู</strong>
+    <span id="mp-dock-count">0 / 50 คน</span>
+    <button id="mp-start-game" type="button">▶ เริ่มเกม</button>
+    <button id="mp-pause-game" type="button">⏸ หยุดชั่วคราว</button>
+    <button id="mp-resume-game" type="button">▶ เล่นต่อ</button>
+    <button id="mp-end-game" type="button">⏹ จบเกม</button>
+    <label for="mp-mission-select">ภารกิจ</label>
+    <select id="mp-mission-select"><option value="1">ภารกิจ 1</option><option value="2">ภารกิจ 2</option><option value="3">ภารกิจ 3</option></select>
+    <button id="mp-set-mission" type="button">เปลี่ยนภารกิจ</button>
+  </aside>
+
+
+  <!-- 3D Game Canvas -->
+  <canvas id="game-canvas"></canvas>
+  <div id="world-labels"></div>
+
+  <!-- ================= HUD OVERLAY ================= -->
+  <div id="hud">
+    <div class="hud-top">
+      <div class="hud-left">
+        <div class="mission-tracker-card">
+          <div class="mission-badge" id="hud-mission-badge">ภารกิจที่ 1 • ห้องเรียน ม.2/1</div>
+          <div class="mission-title" id="hud-mission-title">ปริศนาโทรศัพท์หาย</div>
+          <div class="evidence-progress">
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="hud-progress-fill" style="width: 0%"></div>
+            </div>
+            <span class="progress-text" id="hud-progress-text">0/4</span>
+          </div>
+          <div class="compass-hint" id="hud-compass">
+            <span>🧭</span> <span id="hud-compass-text">เดินสำรวจหาเบาะแสเรืองแสงในห้องเรียน</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-right">
+        <div class="hud-stat-pill" title="ผู้เล่นที่ออนไลน์ในโรงเรียน">
+          <span class="online-dot"></span>
+          <span id="hud-online-count">1 คนออนไลน์</span>
+        </div>
+        <div class="hud-stat-pill">
+          <span>🕵️</span>
+          <span id="hud-player-name">นักสืบ</span>
+        </div>
+        <div class="hud-stat-pill">
+          <span>⭐</span>
+          <span id="hud-score">0 คะแนน</span>
+        </div>
+        <button type="button" class="hud-btn btn-gold-outline" onclick="openPodiumShowcase()" title="ดูแท่นรับรางวัลอันดับคะแนน">🏆 แท่นรางวัล</button>
+        <button type="button" class="hud-btn btn-cyan-outline" onclick="openVehicleModal()" id="btn-vehicle" title="เลือกยานพาหนะ">🚶 เดินเท้าปกติ</button>
+        <button type="button" class="hud-btn" onclick="openDressingRoom()" title="แต่งตัวนักสืบ">👕 แต่งตัว</button>
+        <button type="button" class="hud-btn" onclick="toggleOnlineModal()" title="รายชื่อเพื่อนและแชท">👥 ออนไลน์</button>
+        <button type="button" class="hud-btn" onclick="openMissionSelect()" title="เลือกภารกิจ">📋 ภารกิจ</button>
+        <button type="button" class="hud-btn" id="btn-sound" onclick="toggleSound()" title="เปิด/ปิดเสียงและดนตรี">🔊</button>
+      </div>
+    </div>
+
+    <!-- Evidence Log Bar -->
+    <div class="evidence-log-bar" id="hud-evidence-pills"></div>
+
+    <!-- Emote Action Bar (กดปุ่ม หรือกดเลข 1-5 บนคีย์บอร์ด) -->
+    <div class="emote-bar">
+      <button type="button" class="emote-btn" data-emote="dance" onclick="triggerEmote('dance')">💃 เต้นฉลอง</button>
+      <button type="button" class="emote-btn" data-emote="wave" onclick="triggerEmote('wave')">👋 ทักทาย</button>
+      <button type="button" class="emote-btn" data-emote="think" onclick="triggerEmote('think')">🤔 ครุ่นคิด</button>
+      <button type="button" class="emote-btn" data-emote="spin" onclick="triggerEmote('spin')">🌀 หมุนตัว</button>
+      <button type="button" class="emote-btn" data-emote="faint" onclick="triggerEmote('faint')">🤣 นอนแผ่</button>
+    </div>
+
+    <!-- Interaction Prompt -->
+    <div id="interact-prompt" onclick="triggerInteract()">
+      <span class="key-badge">E</span>
+      <span id="interact-label">สำรวจหลักฐาน</span>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+      <div id="joystick-zone">
+        <div id="joystick-stick"></div>
+      </div>
+      <div class="mobile-actions">
+        <button type="button" class="mob-btn mob-btn-interact" id="mob-interact-btn" onclick="triggerInteract()">🔍<br>สำรวจ</button>
+        <button type="button" class="mob-btn mob-btn-jump" id="mob-jump-btn">⬆️<br>กระโดด</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 1: HOME ================= -->
+  <div id="screen-home" class="screen-overlay">
+    <div class="glass-card" style="text-align: center; max-width: 680px;">
+      <div class="game-logo-badge">🎮 รายวิชาการออกแบบและเทคโนโลยี • ชั้น ม.2</div>
+      <h1 class="game-title-en">5W1H DETECTIVE ADVENTURE</h1>
+      <div class="game-title-th">นักสืบจิ๋วผจญภัย ไขปริศนา 5W1H</div>
+      <p style="color: #94a3b8; font-size: 0.96rem; line-height: 1.6; margin-bottom: 22px;">
+        ออกสำรวจโรงเรียน 3D สไตล์การ์ตูน ขี่ยานพาหนะสุดเท่ รวบรวมหลักฐานจากสถานที่จริง และใช้หลัก 
+        <strong style="color: #fbbf24;">Who • What • When • Where • Why • How</strong> 
+        ตอบไวรับโบนัส <strong style="color: #34d399;">+5 คะแนน</strong> เพื่อขึ้นแท่นรางวัลกลางโรงเรียน!
+      </p>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+        <button type="button" class="btn btn-primary" onclick="goToRegister()">🚀 เริ่มสืบสวน (Start Game)</button>
+        <button type="button" class="btn btn-gold" onclick="openPodiumShowcase()">🏆 ดูแท่นคะแนนอันดับ 1-3</button>
+        <button type="button" class="btn btn-success" onclick="openVehicleModal()">🛹 เลือกยานพาหนะ</button>
+        <button type="button" class="btn btn-purple" onclick="openDressingRoom()">👕 แต่งตัวนักสืบ 3D</button>
+        <button type="button" class="btn btn-secondary" onclick="showScreen('screen-controls')">🎮 วิธีควบคุม</button>
+      </div>
+      <div style="margin-top: 18px; font-size: 0.85rem; color: #34d399; font-weight: 500;">
+        🎵 มีดนตรีประกอบสุดเพลิน • 🌐 เข้าร่วมห้องเรียนออนไลน์ด้วยรหัสห้อง
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 2: CONTROLS GUIDE ================= -->
+  <div id="screen-controls" class="screen-overlay hidden">
+    <div class="glass-card">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size: 1.5rem; color: #fbbf24;">🎮 คู่มือการควบคุม (Controls Guide)</h2>
+          <p style="color: #94a3b8; font-size: 0.9rem;">รองรับทั้งคอมพิวเตอร์ (PC) และโทรศัพท์มือถือ / แท็บเล็ต</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="showScreen('screen-home')">✕ ปิด</button>
+      </div>
+      <div class="controls-grid">
+        <div class="control-item">
+          <div class="control-icon">⌨️</div>
+          <div>
+            <strong>เดินสำรวจ (PC)</strong>
+            <div style="color: #94a3b8; font-size: 0.88rem;">กดปุ่ม <span style="color:#fbbf24">W A S D</span> หรือลูกศร เพื่อเคลื่อนที่</div>
+          </div>
+        </div>
+        <div class="control-item">
+          <div class="control-icon">🛹</div>
+          <div>
+            <strong>เลือกยานพาหนะสุดเท่</strong>
+            <div style="color: #94a3b8; font-size: 0.88rem;">กดปุ่ม <span style="color:#fbbf24">V</span> หรือปุ่มยานพาหนะด้านบนเพื่อเปิดโรงรถ</div>
+          </div>
+        </div>
+        <div class="control-item">
+          <div class="control-icon">💃</div>
+          <div>
+            <strong>ท่าทางอีโมต (Emotes)</strong>
+            <div style="color: #94a3b8; font-size: 0.88rem;">กดปุ่มอีโมตด้านล่างหน้าจอ หรือกดเลข <span style="color:#fbbf24">1 - 5</span></div>
+          </div>
+        </div>
+        <div class="control-item">
+          <div class="control-icon">⚡</div>
+          <div>
+            <strong>โบนัสตอบไว (+5 คะแนน)</strong>
+            <div style="color: #94a3b8; font-size: 0.88rem;">ตอบคำถาม 5W1H ถูกภายใน 10 วินาทีแรก รับโบนัสเพิ่มข้อละ +5!</div>
+          </div>
+        </div>
+        <div class="control-item">
+          <div class="control-icon">🔍</div>
+          <div>
+            <strong>สำรวจหลักฐาน</strong>
+            <div style="color: #94a3b8; font-size: 0.88rem;">เข้าใกล้จุดเรืองแสงแล้วกด <span style="color:#fbbf24">E</span> หรือปุ่มสำรวจ</div>
+          </div>
+        </div>
+        <div class="control-item">
+          <div class="control-icon">🏆</div>
+          <div>
+            <strong>แท่นรางวัลกลางโรงเรียน</strong>
+            <div style="color: #94a3b8; font-size: 0.88rem;">ผู้เล่นคะแนนสูงสุด 3 อันดับแรกจะได้ขึ้นยืนบนแท่นรางวัล 3D</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 22px; text-align: center;">
+        <button type="button" class="btn btn-primary" onclick="goToRegister()">พร้อมแล้ว ไปลงทะเบียนนักสืบ! ➡️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 3: PLAYER REGISTRATION ================= -->
+  <div id="screen-register" class="screen-overlay hidden">
+    <div class="glass-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size: 1.5rem; color: #38bdf8;">🪪 บัตรประจำตัวนักสืบจิ๋ว</h2>
+          <p style="color: #94a3b8; font-size: 0.9rem;">กรอกชื่อ-เลขที่เพื่อแสดงบนแท่นรับรางวัล 3D และตารางคะแนน</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="showScreen('screen-home')">← กลับ</button>
+      </div>
+      <div class="form-group">
+        <label for="input-name">ชื่อ - นามสกุล หรือ ชื่อเล่นนักสืบ</label>
+        <input type="text" id="input-name" class="form-input" placeholder="เช่น ด.ช. กล้าหาญ ใจดี" maxlength="25" />
+      </div>
+      <div class="form-group">
+        <label for="input-no">เลขที่ / ห้องเรียน</label>
+        <input type="text" id="input-no" class="form-input" placeholder="เช่น เลขที่ 15 ม.2/1" maxlength="15" />
+      </div>
+      <div style="display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-purple" style="flex: 1;" onclick="openDressingRoom()">👕 แต่งตัวนักสืบ 3D</button>
+        <button type="button" class="btn btn-success" style="flex: 1;" onclick="openVehicleModal()">🛹 เลือกยานพาหนะ</button>
+      </div>
+      <button type="button" class="btn btn-primary" style="width: 100%;" onclick="submitRegistration()">เข้าสู่แฟ้มภารกิจ 5W1H ➡️</button>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 4: DRESSING ROOM & VEHICLES ================= -->
+  <div id="screen-wardrobe" class="screen-overlay hidden">
+    <div class="glass-card" style="max-width: 900px;">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size: 1.5rem; color: #c084fc;">👕 ห้องแต่งตัว & โรงรถนักสืบ 3D</h2>
+          <p style="color: #94a3b8; font-size: 0.9rem;">ลากเมาส์หรือนิ้วบนตัวละครเพื่อหมุนดู 360° • ชุดและรถซิงก์ออนไลน์ทันที!</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeDressingRoom()">✕ ปิด</button>
+      </div>
+
+      <div class="wardrobe-layout">
+        <div class="preview-box">
+          <canvas id="preview-canvas"></canvas>
+          <div class="preview-hint">🔄 ลากเพื่อหมุนดูรอบตัว 360°</div>
+          <div style="margin-top: 10px; display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="randomizeAppearance()">🎲 สุ่มลุคสุดแนว</button>
+          </div>
+        </div>
+
+        <div class="wardrobe-controls">
+          <div class="custom-section">
+            <h4>🛹 ยานพาหนะสุดเท่ (Vehicle)</h4>
+            <div class="option-grid" id="opt-vehicle"></div>
+          </div>
+
+          <div class="custom-section">
+            <h4>🧑 สีผิว (Skin Tone)</h4>
+            <div class="swatch-grid" id="opt-skin"></div>
+          </div>
+
+          <div class="custom-section">
+            <h4>💇 ทรงผมเก๋ๆ (Hairstyle - 14 สไตล์)</h4>
+            <div class="option-grid" id="opt-hair"></div>
+          </div>
+
+          <div class="custom-section">
+            <h4>🎨 สีผม (Hair Color)</h4>
+            <div class="swatch-grid" id="opt-haircolor"></div>
+          </div>
+
+          <div class="custom-section">
+            <h4>👔 ชุดเครื่องแบบและคอสตูม (Outfit)</h4>
+            <div class="option-grid" id="opt-outfit"></div>
+          </div>
+
+          <div class="custom-section">
+            <h4>👓 แว่นตา (Eyewear)</h4>
+            <div class="option-grid" id="opt-glasses"></div>
+          </div>
+
+          <div class="custom-section">
+            <h4>👑 พร็อพบนหัวและหมวก (Headgear - 7 แบบ)</h4>
+            <div class="option-grid" id="opt-hat"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn btn-success" onclick="saveAppearanceAndClose()">✅ บันทึกลุคและเข้าเล่น</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 4B: DEDICATED VEHICLE GARAGE MODAL ================= -->
+  <div id="screen-vehicle" class="screen-overlay hidden">
+    <div class="glass-card" style="max-width: 660px;">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size: 1.5rem; color: #38bdf8;">🛹 โรงรถนักสืบ (เลือกยานพาหนะ)</h2>
+          <p style="color: #94a3b8; font-size: 0.9rem;">เลือกยานพาหนะคู่ใจเพื่อเพิ่มความเร็วในการสำรวจทั่วโรงเรียน</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeVehicleModal()">✕ ปิด</button>
+      </div>
+      <div class="vehicle-cards-grid" id="vehicle-garage-grid"></div>
+      <div style="margin-top: 18px; text-align: right;">
+        <button type="button" class="btn btn-primary" onclick="closeVehicleModal()">✅ ยืนยันการเลือกยานพาหนะ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 5: MISSION SELECT ================= -->
+  <div id="screen-missions" class="screen-overlay hidden">
+    <div class="glass-card" style="max-width: 840px;">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size: 1.5rem; color: #fbbf24;">📋 เลือกภารกิจสืบสวน (Select Mission)</h2>
+          <p style="color: #94a3b8; font-size: 0.9rem;">นักสืบ: <span id="select-player-label" style="color:#38bdf8; font-weight:600;">-</span> | คะแนนรวม: <span id="select-total-score" style="color:#fbbf24; font-weight:600;">0</span></p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-gold btn-sm" onclick="openPodiumShowcase()">🏆 แท่นรางวัล</button>
+          <button type="button" class="btn btn-success btn-sm" onclick="openVehicleModal()">🛹 ยานพาหนะ</button>
+          <button type="button" class="btn btn-purple btn-sm" onclick="openDressingRoom()">👕 แต่งตัว</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="showScreen('screen-home')">🏠 หน้าแรก</button>
+        </div>
+      </div>
+
+      <div class="mission-cards-grid" id="mission-cards-container"></div>
+
+      <div style="margin-top: 20px; text-align: center; color: #94a3b8; font-size: 0.85rem;">
+        💡 เคล็ดลับ: ตอบคำถาม 5W1H ถูกภายใน 10 วินาทีแรก รับโบนัสความไวเพิ่มข้อละ <strong style="color:#34d399;">+5 คะแนน</strong>!
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 6: EVIDENCE POPUP ================= -->
+  <div id="screen-evidence" class="screen-overlay hidden">
+    <div class="glass-card" style="max-width: 540px; text-align: center;">
+      <div class="evidence-icon-large" id="ev-modal-icon">📱</div>
+      <div class="mission-badge" id="ev-modal-tag">พบหลักฐานใหม่!</div>
+      <h3 style="font-size: 1.35rem; color: #f8fafc; margin-bottom: 10px;" id="ev-modal-title">ชื่อหลักฐาน</h3>
+      <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 14px; padding: 16px; text-align: left; margin-bottom: 18px; line-height: 1.6; color: #e2e8f0;" id="ev-modal-desc">
+        รายละเอียดคำให้การหรือหลักฐาน...
+      </div>
+      <div style="color: #34d399; font-weight: 600; margin-bottom: 16px;" id="ev-modal-counter">รวบรวมหลักฐานแล้ว 1 / 4 ชิ้น</div>
+      <button type="button" class="btn btn-primary" style="width: 100%;" onclick="closeEvidenceModal()">บันทึกข้อมูลลงสมุดนักสืบ ✅</button>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 7: 5W1H ANALYSIS QUIZ ================= -->
+  <div id="screen-quiz" class="screen-overlay hidden">
+    <div class="glass-card" style="max-width: 720px;">
+      <div class="modal-header">
+        <div>
+          <span class="mission-badge" id="quiz-mission-name">วิเคราะห์ข้อมูล 5W1H</span>
+          <h2 style="font-size: 1.25rem; color: #f8fafc;">แบบทดสอบวิเคราะห์ปัญหาตามหลัก 5W1H</h2>
+        </div>
+        <div style="text-align: right;">
+          <div id="quiz-speed-badge" class="speed-bonus-pill">⚡ โบนัสตอบไว +5 (10.0s)</div>
+          <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">
+            ข้อที่ <span id="quiz-step-num" style="color:#fbbf24; font-weight:700;">1</span>/6 • 
+            คะแนน: <span id="quiz-current-score" style="color:#34d399; font-weight:700;">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="w1h-tabs" id="quiz-w1h-tabs"></div>
+
+      <div class="question-box">
+        <div class="w1h-tag" id="quiz-w1h-tag">WHO (ใครเกี่ยวข้องกับปัญหา)</div>
+        <div class="question-text" id="quiz-question-text">คำถาม...</div>
+        <div class="options-grid" id="quiz-options-container"></div>
+        <div class="explanation-box hidden" id="quiz-explanation-box">
+          <strong id="quiz-feedback-title" style="display:block; margin-bottom:4px;">เฉลยและคำอธิบาย:</strong>
+          <span id="quiz-explanation-text">คำอธิบาย...</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px; display: flex; justify-content: space-between; align-items: center;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEvidenceReview()">📂 ดูหลักฐานที่เก็บมา</button>
+        <button type="button" class="btn btn-primary hidden" id="quiz-next-btn" onclick="nextQuizQuestion()">ข้อถัดไป ➡️</button>
+      </div>
+
+      <div id="quiz-evidence-drawer" class="hidden" style="margin-top: 14px; background: rgba(15,23,42,0.85); padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); font-size: 0.88rem;">
+        <strong style="color: #fbbf24; display: block; margin-bottom: 6px;">📌 สรุปหลักฐานที่รวบรวมได้:</strong>
+        <ul id="quiz-evidence-list" style="padding-left: 18px; color: #cbd5e1; line-height: 1.5;"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 8: MISSION SUMMARY ================= -->
+  <div id="screen-summary" class="screen-overlay hidden">
+    <div class="glass-card" style="max-width: 560px; text-align: center;">
+      <div class="mission-badge" id="sum-badge">ปิดคดีสำเร็จ!</div>
+      <h2 style="font-size: 1.7rem; color: #fbbf24; margin-bottom: 4px;" id="sum-title">ภารกิจที่ 1 เสร็จสมบูรณ์</h2>
+      <div class="stars-display" id="sum-stars">⭐⭐⭐</div>
+      <div style="font-size: 1.35rem; font-weight: 700; color: #34d399; margin-bottom: 6px;" id="sum-score-text">ได้รับ 630 คะแนน</div>
+      <div style="font-size: 0.9rem; color: #38bdf8; margin-bottom: 12px;" id="sum-speed-text">⚡ รวมโบนัสตอบไว +30 คะแนน!</div>
+      <p style="color: #e2e8f0; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); padding: 13px; border-radius: 12px; margin-bottom: 18px; line-height: 1.5;" id="sum-encouragement">
+        ยอดเยี่ยมมากนักสืบ! คุณวิเคราะห์ข้อมูล 5W1H ได้อย่างแม่นยำ
+      </p>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+        <button type="button" class="btn btn-gold" onclick="openPodiumShowcase()">🏆 ขึ้นแท่นรางวัล 3D</button>
+        <button type="button" class="btn btn-primary" id="sum-next-mission-btn" onclick="goNextMission()">ภารกิจถัดไป ➡️</button>
+        <button type="button" class="btn btn-secondary" onclick="replayCurrentMission()">🔄 เล่นซ้ำ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 9: 3D PODIUM & INDIVIDUAL LEADERBOARD ================= -->
+  <div id="screen-podium" class="screen-overlay hidden">
+    <div class="glass-card" style="max-width: 860px;">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size: 1.5rem; color: #fbbf24;">🏆 แท่นรับรางวัลนักสืบ 5W1H ประจำห้อง (3D Podium)</h2>
+          <p style="color: #94a3b8; font-size: 0.9rem;">ทุกคนสามารถเปิดดูอันดับคะแนนรายบุคคลและตัวละคร 3D ของผู้ชนะได้ตลอดเวลา</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closePodiumShowcase()">✕ ปิด</button>
+      </div>
+
+      <div class="podium-stage-wrapper">
+        <canvas id="podium-canvas"></canvas>
+        <div class="podium-cards-overlay" id="podium-top3-cards"></div>
+      </div>
+
+      <h3 style="font-size: 1.1rem; color: #38bdf8; margin: 16px 0 8px;">📊 ตารางคะแนนรายบุคคลทั้งหมด (รวมโบนัสตอบไว)</h3>
+      <div style="overflow-x: auto; max-height: 220px;">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>อันดับ</th>
+              <th>ชื่อนักสืบ</th>
+              <th>เลขที่/ห้อง</th>
+              <th>ภารกิจ 1</th>
+              <th>ภารกิจ 2</th>
+              <th>ภารกิจ 3</th>
+              <th>คะแนนรวม</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-tbody"></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="resetLocalPlayer()">🗑️ รีเซ็ตข้อมูลเครื่องนี้</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="closePodiumShowcase()">กลับสู่โรงเรียน 3D 🎮</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 10: ONLINE PLAYERS & CHAT MODAL ================= -->
+  <div id="screen-online" class="screen-overlay hidden">
+    <div class="glass-card" style="max-width: 540px;">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size: 1.4rem; color: #34d399;">🌐 นักสืบที่ออนไลน์ในโรงเรียนตอนนี้</h2>
+          <p style="color: #94a3b8; font-size: 0.85rem;">เซิร์ฟเวอร์กลาง: ห้องเรียนรวม 5W1H (Real-Time Shared Server)</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleOnlineModal()">✕ ปิด</button>
+      </div>
+
+      <div class="online-list" id="online-players-list"></div>
+
+      <div style="margin-top: 14px;">
+        <label style="display:block; font-size:0.85rem; color:#cbd5e1; margin-bottom:6px;">💬 ส่งข้อความทักทายเพื่อน (แสดงบนศีรษะในฉาก 3D):</label>
+        <div class="chat-box-row">
+          <input type="text" id="chat-input" class="form-input" placeholder="พิมพ์ข้อความสั้นๆ เช่น ขึ้นแท่นอันดับ 1 แล้ว!..." maxlength="45" onkeydown="if(event.key==='Enter') sendChatMessage()" />
+          <button type="button" class="btn btn-primary btn-sm" onclick="sendChatMessage()">ส่ง</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast">ข้อความแจ้งเตือน</div>
+
+  <script src="game.js"></script>
+  <script type="module" src="multiplayer-client.js"></script>
+</body>
+</html>
